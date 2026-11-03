@@ -9,10 +9,10 @@ jobs:
         with: { distribution: temurin, java-version: 17 }
       - name: Terima lisensi Android SDK
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with: { gradle-version: 8.7 }
       - run: gradle assembleDebug
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: WebAdbHmdm-debug-apk
           path: app/build/outputs/apk/debug/*.apk
