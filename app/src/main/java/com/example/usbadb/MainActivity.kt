@@ -1,6 +1,7 @@
 package com.example.usbadb
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,8 +13,10 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -24,6 +27,7 @@ import java.util.concurrent.Executors
 @Suppress("DEPRECATION")
 class MainActivity : Activity() {
     private val actionPerm = "com.example.usbadb.USB_PERMISSION"
+    private val reqPickApk = 1001
     private lateinit var usb: UsbManager
     private lateinit var status: TextView
     private lateinit var output: TextView
@@ -66,6 +70,14 @@ class MainActivity : Activity() {
             text = "Jalankan"
             setOnClickListener { runCommand() }
         }
+        val btnInstall = Button(this).apply {
+            text = "Instal APK"
+            setOnClickListener { pickApk() }
+        }
+        val btnOwner = Button(this).apply {
+            text = "Set Device Owner (HMDM)"
+            setOnClickListener { confirmSetDeviceOwner() }
+        }
         output = TextView(this).apply {
             typeface = Typeface.MONOSPACE
             textSize = 12f
@@ -77,6 +89,8 @@ class MainActivity : Activity() {
         root.addView(btnConnect)
         root.addView(input)
         root.addView(btnRun)
+        root.addView(btnInstall)
+        root.addView(btnOwner)
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
@@ -162,6 +176,95 @@ class MainActivity : Activity() {
                 a.shell(cmd) { append(it) }
                 append("\n")
             } catch (e: Exception) {
+                append("[error] ${e.message}\n")
+            }
+        }
+    }
+
+    private fun pickApk() {
+        if (adb == null) { setStatus("Belum terhubung"); return }
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        startActivityForResult(i, reqPickApk)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == reqPickApk && resultCode == RESULT_OK) data?.data?.let { installApk(it) }
+    }
+
+    private fun installApk(uri: Uri) {
+        val a = adb
+        if (a == null) { setStatus("Belum terhubung"); return }
+        var size = -1L
+        var name = "aplikasi.apk"
+        contentResolver.query(uri, null, null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                val si = c.getColumnIndex(OpenableColumns.SIZE)
+                if (si >= 0 && !c.isNull(si)) size = c.getLong(si)
+                val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (ni >= 0) name = c.getString(ni) ?: name
+            }
+        }
+        val remote = "/data/local/tmp/usbadb_install.apk"
+        append("Instal $name…\n")
+        io.execute {
+            try {
+                var lastPct = -2
+                val ins = contentResolver.openInputStream(uri) ?: throw java.io.IOException("Tidak bisa membuka file")
+                ins.use {
+                    a.push(remote, 33188, it) { sent ->
+                        val pct = if (size > 0) (sent * 100 / size).toInt() else -1
+                        if (pct != lastPct) {
+                            lastPct = pct
+                            setStatus(if (pct >= 0) "Mengunggah $name… $pct%" else "Mengunggah $name… ${sent / 1024} KB")
+                        }
+                    }
+                }
+                setStatus("Memasang $name…")
+                val sb = StringBuilder()
+                a.shell("pm install -r -t $remote") { sb.append(it); append(it) }
+                a.shell("rm $remote") { }
+                append("\n")
+                setStatus(if (sb.contains("Success")) "Berhasil memasang $name ✔" else "Gagal memasang $name (lihat log)")
+            } catch (e: Exception) {
+                setStatus("Gagal: ${e.message}")
+                append("[error] ${e.message}\n")
+            }
+        }
+    }
+
+    private fun confirmSetDeviceOwner() {
+        if (adb == null) { setStatus("Belum terhubung"); return }
+        AlertDialog.Builder(this)
+            .setTitle("Set Device Owner")
+            .setMessage("Menjalankan:\ndpm set-device-owner com.hmdm.launcher/.AdminReceiver\n\n" +
+                "Pastikan aplikasi Headwind MDM sudah terpasang di HP target dan tidak ada akun " +
+                "(Google dll.) yang login. Lanjutkan?")
+            .setNegativeButton("Batal", null)
+            .setPositiveButton("Jalankan") { _, _ -> setDeviceOwner() }
+            .show()
+    }
+
+    private fun setDeviceOwner() {
+        val a = adb
+        if (a == null) { setStatus("Belum terhubung"); return }
+        val cmd = "dpm set-device-owner com.hmdm.launcher/.AdminReceiver"
+        append("$ $cmd\n")
+        setStatus("Menjalankan set-device-owner…")
+        io.execute {
+            try {
+                val sb = StringBuilder()
+                a.shell(cmd) { sb.append(it); append(it) }
+                append("\n")
+                setStatus(
+                    if (sb.contains("Success")) "Device owner berhasil diatur ✔"
+                    else "Gagal mengatur device owner (lihat log)"
+                )
+            } catch (e: Exception) {
+                setStatus("Gagal: ${e.message}")
                 append("[error] ${e.message}\n")
             }
         }
