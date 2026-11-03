@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web ADB - Headwind MDM Multi-Installer</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- FontAwesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-mono { font-family: 'Fira Code', monospace; }
+    
+    pre::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    pre::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    pre::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    pre::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200">
+
+  <!-- Header / Navbar -->
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg">
+          <i class="fa-solid fa-mobile-screen-button text-xl"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">Web ADB <span class="text-emerald-600 dark:text-emerald-400">HMDM</span></h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Headwind MDM Device Owner & Multi-APK Setup</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <button id="themeToggle" class="p-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Beralih Tema">
+          <i class="fa-solid fa-moon dark:hidden text-lg"></i>
+          <i class="fa-solid fa-sun hidden dark:block text-lg"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4 space-y-3">
+
+    <!-- WebUSB Support Warning -->
+    <div id="unsupportedWarning" class="hidden bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-amber-800 dark:text-amber-200 flex items-start space-x-3">
+      <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-lg flex-shrink-0"></i>
+      <div class="text-sm">
+        <strong class="font-semibold">Browser tidak mendukung WebUSB!</strong>
+        <p class="mt-1">Silakan gunakan Google Chrome, Microsoft Edge, atau browser berbasis Chromium versi desktop.</p>
+      </div>
+    </div>
+
+    <!-- Status & Connection Section -->
+    <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div>
+          <h2 class="text-base font-semibold flex items-center gap-2">
+            <span class="flex h-3 w-3 relative">
+              <span id="pingDot" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+              <span id="statusDot" class="relative inline-flex rounded-full h-3 w-3 bg-slate-400"></span>
+            </span>
+            Status Koneksi
+          </h2>
+          <p id="deviceInfo" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Belum ada perangkat terhubung</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnConnect" class="inline-flex items-center px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all">
+            <i class="fa-solid fa-plug mr-1.5"></i> Pilih Perangkat
+          </button>
+          
+          <button id="btnAdbTcpip" disabled class="inline-flex items-center px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all">
+            <i class="fa-solid fa-wifi mr-1.5"></i> Aktifkan ADB Connect
+          </button>
+
+          <button id="btnDisconnect" disabled class="inline-flex items-center px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+            <i class="fa-solid fa-power-off mr-1.5"></i> Putuskan
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-xs text-slate-600 dark:text-slate-300 space-y-1 border border-slate-100 dark:border-slate-800">
+        <p class="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info text-emerald-500"></i> Panduan Hubungkan:
+        </p>
+        <ol class="list-decimal list-inside space-y-0.5 ml-1">
+          <li>Aktifkan <b>Opsi Developer (Developer Options)</b> di Perangkat Android.</li>
+          <li>Nyalakan <b>USB Debugging</b>.</li>
+          <li>Sambungkan HP target ke HP ini dengan <b>kabel OTG</b>, lalu izinkan akses USB. Saat pop-up muncul di HP target, pilih <b>"Selalu Izinkan"</b>.</li>
+          <li>Tekan <b>Pilih Perangkat</b> untuk memulai koneksi.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Actions Grid -->
+    <div class="grid md:grid-cols-2 gap-3">
+
+      <!-- Step 1: Install APK -->
+      <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">
+            <span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-[10px]">1</span>
+            <span>Instalasi Aplikasi</span>
+          </div>
+          <h3 class="text-sm font-semibold mb-1">Unggah File APK (Bisa Banyak)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Pilih satu atau beberapa file APK sekaligus untuk diinstal ke perangkat target.
+          </p>
+
+          <div class="mb-3">
+            <input id="apkFile" type="file" accept=".apk" multiple class="hidden">
+            <label for="apkFile" id="fileLabel" class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-xl p-3 cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/30">
+              <i class="fa-solid fa-file-arrow-up text-xl text-slate-400 mb-1"></i>
+              <span id="fileNameDisplay" class="text-xs font-medium text-slate-600 dark:text-slate-300 text-center truncate w-full">Ketuk untuk memilih File APK</span>
+              <span class="text-[10px] text-slate-400 mt-0.5">Dapat memilih lebih dari satu file APK</span>
+            </label>
+          </div>
+
+          <div id="progressContainer" class="hidden space-y-1 mb-3">
+            <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
+              <span id="progressText">Mengunggah...</span>
+              <span id="progressPercent">0%</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div id="progressBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-150" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <button id="btnInstall" disabled class="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-download"></i> Pasang Semua APK
+        </button>
+      </section>
+
+      <!-- Step 2: Device Owner setup -->
+      <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">
+            <span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-[10px]">2</span>
+            <span>Atur Hak Akses</span>
+          </div>
+          <h3 class="text-sm font-semibold mb-1">Set Device Owner</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">
+            Jadikan Headwind MDM sebagai Device Owner penuh di perangkat Android target.
+          </p>
+
+          <div class="mb-3 space-y-1.5">
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center justify-between">
+              <span>Admin Receiver Component:</span>
+              <span class="text-[10px] text-slate-400 font-normal"><i class="fa-solid fa-lock text-[9px] mr-1"></i>Terkunci</span>
+            </label>
+            <input id="ownerCmdInput" type="text" value="com.hmdm.launcher/.AdminReceiver" readonly class="w-full px-2.5 py-1.5 text-xs font-mono bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 cursor-not-allowed select-none focus:outline-none">
+          </div>
+
+          <div class="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-2.5 text-[11px] text-rose-700 dark:text-rose-300 mb-3">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> <b>Penting:</b> Hapus terlebih dahulu semua akun Google/Email & akun pengguna lain di HP.
+          </div>
+        </div>
+
+        <button id="btnSetOwner" disabled class="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-user-shield"></i> Jalankan set-device-owner
+        </button>
+      </section>
+
+    </div>
+
+    <!-- Section Otomatis Terpisah -->
+    <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <i class="fa-solid fa-bolt text-emerald-600 dark:text-emerald-400"></i> Proses Otomatis
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Jalankan pemasangan semua APK dan pengaturan Device Owner sekaligus dalam satu klik.
+          </p>
+        </div>
+        <button id="btnAutoAll" disabled class="sm:w-auto w-full py-2 px-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-bolt"></i> Otomatis: Install APK + Set Owner
+        </button>
+      </div>
+    </section>
+
+    <!-- Terminal Output Log -->
+    <section class="bg-slate-900 text-slate-100 border border-slate-800 rounded-2xl p-3.5 shadow-xl space-y-1.5">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800 text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+          <span class="ml-2 font-mono text-slate-400">Terminal Console Log</span>
+        </div>
+        <button id="btnClearLog" class="text-slate-400 hover:text-slate-200 transition-colors text-xs flex items-center gap-1">
+          <i class="fa-solid fa-eraser"></i> Bersihkan
+        </button>
+      </div>
+
+      <pre id="logOutput" class="font-mono text-xs text-emerald-400/90 leading-relaxed min-h-[180px] max-h-[320px] overflow-y-auto whitespace-pre-wrap break-all p-1.5 select-text">System initialized. Menunggu koneksi USB OTG...</pre>
+    </section>
+
+    <!-- Footer -->
+    <footer class="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <div>
+        © 2026 PT. Sumber Alfaria Trijaya, Tbk. - IT RZ01 Department
+      </div>
+      <div class="font-semibold text-slate-600 dark:text-slate-300">
+        Version 2.2
+      </div>
+    </footer>
+
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const logOutput = $("logOutput");
+    let connected = false;
+    let isBusy = false;
+    let picked = [];
+
+    // ===== Jembatan ke Android (Kotlin) =====
+    const pending = {};
+    let seq = 0;
+    function call(method, ...args) {
+      return new Promise((resolve, reject) => {
+        const id = "c" + (++seq);
+        pending[id] = { resolve, reject };
+        Android[method](id, ...args);
+      });
+    }
+    window.__resolve = (id, r) => {
+      const p = pending[id]; delete pending[id];
+      if (!p) return;
+      r.ok ? p.resolve(r.data) : p.reject(new Error(r.error));
+    };
+    window.__log = (text, type) => appendLog(text, type);
+    window.__progress = (idx, total, name, pct) => {
+      $("progressContainer").classList.remove("hidden");
+      $("progressBar").style.width = pct + "%";
+      $("progressPercent").textContent = pct + "%";
+      $("progressText").textContent = `[${idx}/${total}] ${pct < 100 ? "Mengirim" : "Memverifikasi"} ${name}...`;
+    };
+    window.__apksPicked = (list) => {
+      picked = list;
+      $("fileNameDisplay").textContent = list.length === 0 ? "Pilih File APK"
+        : list.length === 1 ? `${list[0].name} (${(list[0].size / 1048576).toFixed(2)} MB)`
+        : `${list.length} File APK dipilih`;
+      updateUIState();
+    };
+
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
+    $("themeToggle").addEventListener('click', () => document.documentElement.classList.toggle('dark'));
+
+    function appendLog(text, type = "info") {
+      const time = new Date().toLocaleTimeString();
+      let prefix = `[${time}] `;
+      if (type === "cmd") prefix += "$ ";
+      if (type === "err") prefix += "[ERROR] ";
+      logOutput.textContent += `\n${prefix}${text}`;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+    $("btnClearLog").onclick = () => { logOutput.textContent = "Log dibersihkan."; };
+
+    function updateUIState() {
+      const ready = connected && !isBusy;
+      $("btnConnect").disabled = connected || isBusy;
+      $("btnDisconnect").disabled = !connected || isBusy;
+      $("btnInstall").disabled = !ready || !picked.length;
+      $("btnSetOwner").disabled = !ready;
+      $("btnAdbTcpip").disabled = !ready;
+      $("btnAutoAll").disabled = !ready || !picked.length;
+      const pingDot = $("pingDot"), statusDot = $("statusDot");
+      if (connected) {
+        statusDot.className = "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
+        pingDot.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+      } else {
+        statusDot.className = "relative inline-flex rounded-full h-3 w-3 bg-slate-400";
+        pingDot.className = "hidden";
+      }
+    }
+
+    async function executeTask(fn) {
+      isBusy = true; updateUIState();
+      try { await fn(); }
+      catch (err) { appendLog((err && err.message) || err, "err"); }
+      finally { isBusy = false; updateUIState(); }
+    }
+
+    async function runShell(command) {
+      appendLog(command, "cmd");
+      const out = (await call("shell", command)).trim();
+      if (out) appendLog(out);
+      return out;
+    }
+
+    $("btnConnect").onclick = () => executeTask(async () => {
+      appendLog("Mencari perangkat via USB OTG...");
+      const serial = await call("connect");
+      connected = true;
+      const model = await runShell("getprop ro.product.model");
+      const ver = await runShell("getprop ro.build.version.release");
+      $("deviceInfo").textContent = `Terhubung: ${model || serial} (Android ${ver})`;
+      appendLog(`Berhasil terhubung ke ${model} (Android ${ver}) [Serial: ${serial}]`);
+    });
+
+    async function disconnectDevice() {
+      try { await call("disconnect"); } catch (e) {}
+      connected = false;
+      $("deviceInfo").textContent = "Belum ada perangkat terhubung";
+    }
+    $("btnDisconnect").onclick = () => executeTask(async () => {
+      await disconnectDevice();
+      appendLog("Koneksi ADB terputus.");
+    });
+
+    $("fileLabel").addEventListener("click", (e) => { e.preventDefault(); Android.pickApks(); });
+
+    async function installApkProcess() {
+      if (!picked.length) throw new Error("Silakan pilih minimal satu file APK.");
+      appendLog(`Memulai pemasangan massal ${picked.length} aplikasi...`);
+      await call("install");
+      $("progressContainer").classList.add("hidden");
+      appendLog(`Selesai! Seluruh (${picked.length}) APK berhasil terpasang.`);
+    }
+    $("btnInstall").onclick = () => executeTask(installApkProcess);
+
+    async function setDeviceOwnerProcess() {
+      const receiver = $("ownerCmdInput").value.trim() || "com.hmdm.launcher/.AdminReceiver";
+      appendLog("Menjalankan perintah Device Owner...");
+      const output = await runShell(`dpm set-device-owner ${receiver}`);
+      if (/exception|error/i.test(output)) {
+        throw new Error("Pengaturan Device Owner gagal. Pastikan tidak ada akun (Google/Email) yang terhubung di HP!");
+      }
+      appendLog("Berhasil menetapkan Headwind MDM sebagai Device Owner!");
+    }
+    $("btnSetOwner").onclick = () => executeTask(setDeviceOwnerProcess);
+
+    async function enableAdbTcpipProcess() {
+      let wifiIp = "";
+      try {
+        const ipOutput = await runShell("ip route show dev wlan0");
+        const m = ipOutput.match(/src\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/);
+        if (m) wifiIp = m[1];
+      } catch (e) {}
+
+      appendLog("Mengirim instruksi TCPIP 5555 ke daemon ADB perangkat...");
+      appendLog("tcpip 5555", "cmd");
+      try {
+        await call("tcpip", 5555);
+        appendLog("Berhasil! Perangkat berpindah ke mode ADB Wireless (Port 5555).");
+      } catch (err) {
+        appendLog("Mencoba metode alternatif (setprop)...");
+        await runShell("setprop service.adb.tcp.port 5555");
+        await runShell("stop adbd");
+        await runShell("start adbd");
+        appendLog("Perintah restart adbd dikirim.");
+      }
+      if (wifiIp) {
+        appendLog(`IP Wi-Fi Perangkat: ${wifiIp}`);
+        appendLog(`Hubungkan secara wireless dengan: adb connect ${wifiIp}:5555`);
+      } else {
+        appendLog("Perangkat siap terhubung secara wireless pada port 5555.");
+      }
+      appendLog("Memutus koneksi USB...");
+      await disconnectDevice();
+      appendLog("Status Koneksi: Terputus (Mode ADB Wireless Aktif).");
+    }
+    $("btnAdbTcpip").onclick = () => executeTask(enableAdbTcpipProcess);
+
+    $("btnAutoAll").onclick = () => executeTask(async () => {
+      appendLog("=== MEMULAI PROSES OTOMATIS ===");
+      await installApkProcess();
+      await setDeviceOwnerProcess();
+      appendLog("=== PROSES OTOMATIS SELESAI SUKSES ===");
+    });
+
+    updateUIState();
+  </script>
+</body>
+</html>
