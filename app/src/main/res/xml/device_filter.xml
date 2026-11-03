@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Antarmuka ADB: class 0xFF, subclass 0x42, protocol 1 -->
-    <usb-device class="255" subclass="66" protocol="1" />
-</resources>
